@@ -1,0 +1,316 @@
+# strscan — дефолтный список подозрительных строк.
+#
+# Это ОСНОВА, а не готовая база. Скопируйте нужные строки
+# в свой strings/bad_commands.txt и дополните под свои задачи.
+#
+# Формат: одна строка = одна сигнатура. Регистр не важен.
+# Пробелы тоже не важны: при поиске всё приводится к нижнему
+# регистру и пробелы убираются.
+#
+# Комментарии начинаются с #. Пустые строки игнорируются.
+#
+# Секции:
+#   [all] — паттерны для всех языков
+#   [bat] — только для .bat / .cmd
+#   [ps1] — только для .ps1 / .psm1 / .psd1
+#   [vbs] — только для .vbs / .vbe
+#   [js]  — только для .js / .jse / .wsf / .wsh
+#   [hta] — только для .hta
+#
+# СИНТАКСИС #wide:
+#   Паттерны, начинающиеся с '#wide:', ИГНОРИРУЮТСЯ по умолчанию.
+#   Это ШИРОКИЕ паттерны — они дают FP на легитимных скриптах
+#   (Office, VS Code, PowerShell-модули Microsoft, minified JS).
+#   Но также используются зловредами.
+#
+#   Чтобы включить широкий паттерн — уберите префикс '#wide:':
+#       было:  #wide:invoke-expression
+#       стало: invoke-expression
+#
+#   Включайте широкие паттерны, если нужно максимальное покрытие
+#   (но будет много FP). Рекомендуется сначала протестировать
+#   в узком режиме, потом включать широкие.
+#
+# ВАЖНО: не включайте в паттерны имена файлов (autorun.bat,
+# svchost.bat) и конкретные пути целиком. Имя может быть любым —
+# паттерн с именем ломается. Берите ОБЩИЕ части:
+#   плохо:  echo open=autorun.bat
+#   хорошо: echoopen=
+#
+# ПРИНЦИП: вместо масок (*, ?) добавляем близкие варианты одного
+# паттерна. Например, для самокопирования:
+#   copy%0
+#   copy/y"%0"
+#   copy/y"%self%"
+#   xcopy/y"%0"
+# Так покрываем разные синтаксисы без regex.
+
+
+[all]
+# Общие паттерны — ищутся во всех типах файлов.
+
+# --- Узкие: специфичны для зловредов ---
+downloadstring
+net.webclient
+
+# --- Широкие: FP на легитимных скриптах ---
+# frombase64string — Office, диагностика, PowerShell-модули.
+#wide:frombase64string
+
+# -encodedcommand — Secure Boot, MS-скрипты.
+#wide:-encodedcommand
+
+
+[bat]
+# Только для .bat / .cmd
+
+# --- Самокопирование и USB-червь ---
+copy%0
+copy/y"%0"
+copy/y"%self%"
+xcopy%0
+xcopy/y"%0"
+xcopy/y"%self%"
+%~f0
+set"self=%~f0"
+start%0
+startmenu\programs\startup
+echo[autorun]
+echoopen=
+echoshellexecute=
+echoicon=
+echoaction=
+echolabel=
+%random%.bat
+%random%.cmd
+
+# --- Деструктивные ключи реестра (вирусы-вредители) ---
+disabletaskmgr
+nocontrolpanel
+nodesktop
+restrict run
+commandprocessor/autorun
+commandprocessor\autorun
+commandprocessor"autorun
+
+# --- Реестр без разделителей (обход нормализации) ---
+hkcusoftwaremicrosoft
+hklmsoftwaremicrosoft
+
+# --- Оболочка и запуск ---
+cmd/c
+cmd.exe/k
+
+# --- Работа с реестром ---
+regadd
+regdelete
+hkcu\software\microsoft\windows\currentversion\run
+hklm\software\microsoft\windows\currentversion\run
+hkcu\software\microsoft\windows\currentversion\runonce
+hklm\software\microsoft\windows\currentversion\runonce
+currentversion\policies\explorer\run
+
+# --- Планировщик, службы, тома ---
+schtasks/create
+schtasks/change
+vssadmindelete
+wmicprocesscallcreate
+
+# --- Загрузка из сети ---
+bitsadmin/transfer
+certutil-decode
+certutil-urlcache
+certutil-verifyctl
+ftp-s
+tftp-i
+
+# --- Управление пользователями и сетью ---
+netuser/add
+netlocalgroupadministrators
+netlocalgroup/users
+netshfirewall
+
+# Самокопирование и USB-червь
+attrib+h+s+r
+attrib+h
+attrib+s
+attrib+r
+drivetype=2
+win32_logicaldisk
+
+# Скрытие окна
+showwindow
+getconsolewindow
+add-type-memberdefinition
+dllimport
+
+# Дополнительные автозагрузки
+set-itemproperty
+new-itemproperty
+hkcu:\software\microsoft\windows\currentversion\run
+hklm:\software\microsoft\windows\currentversion\run
+
+# Ярлыки-обманки
+createshortcut
+.lnk
+invoice.docx
+report.pdf
+
+# Сбор информации
+get-computerinfo
+ipconfig/all
+whoami
+
+
+[ps1]
+# Только для .ps1 / .psm1 / .psd1
+
+# --- Узкие: специфичны для PowerShell-зловредов ---
+powershell-enc
+powershell-encodedcommand
+-whidden
+-windowstylehidden
+new-objectnet.webclient
+
+# --- Широкие: FP на MS-скриптах (VS Code, PowerShellGet, Secure Boot) ---
+# -executionpolicybypass
+#wide:-executionpolicybypass
+
+# invoke-expression / iex( — VS Code, легитимные модули.
+#wide:invoke-expression
+#wide:iex(
+
+# invoke-webrequest — PowerShellGet, PackageManagement.
+#wide:invoke-webrequest
+
+# -nop / -noprofile — стандартные флаги PowerShell.
+#wide:-nop
+#wide:-noprofile
+
+# Самокопирование
+copy-item$myinvocation.mycommand.path
+copy-item$pscommandpath
+$myinvocation.mycommand.path
+$myinvocation.mycommand.name
+$pscommandpath
+
+# Скрытие окна (P/Invoke)
+add-type-memberdefinition
+dllimport"kernel32.dll"
+dllimport"user32.dll"
+showwindow
+getconsolewindow
+
+# Скрытие файла
+attrib+h+s+r
+attrib+h
+attrib+s
+attrib+r
+
+# Автозагрузка (PowerShell-синтаксис)
+set-itemproperty"hkcu:\software\microsoft\windows\currentversion\run
+new-itemproperty"hkcu:\software\microsoft\windows\currentversion\run
+set-itemproperty"hklm:\software\microsoft\windows\currentversion\run
+new-itemproperty"hklm:\software\microsoft\windows\currentversion\run
+hkcu:\software\microsoft\windows\currentversion\run
+hklm:\software\microsoft\windows\currentversion\run
+
+# USB-червь (съёмные диски)
+drivetype=2
+win32_logicaldisk
+$_.deviceid
+get-wmiobjectwin32_logicaldisk
+
+# Ярлыки-обманки
+createshortcut
+new-object-comobjectwscript.shell
+wscript.shell
+.lnk
+invoice.docx
+report.pdf
+windowsupdate.ps1
+securityhealth.ps1
+svchost.vbs
+
+# Копирование в пользовательские папки
+environment]::getfolderpath("desktop")
+environment]::getfolderpath("mydocuments")
+environment]::getfolderpath("startup")
+%userprofile%\downloads
+$env:userprofile\downloads
+
+# Сбор информации о системе
+get-computerinfo
+ipconfig/all
+get-process
+whoami
+
+# Base64 (маркер в отдельных строках)
+frombase64string
+[convert]::frombase64string
+[text.encoding]::unicode.getstring
+invoke-expression
+
+
+[vbs]
+# Только для .vbs / .vbe
+
+# --- Менее широкие, чем в [js] — в VBS эти вызовы специфичны ---
+shell.application
+adodb.stream
+xmlhttp
+savetofile
+
+# --- Широкие: FP на легитимных VBS (winrm.vbs и др.) ---
+# createobject("wscript.shell")
+#wide:createobject("wscript.shell")
+#wide:wscript.shell
+
+# Самокопирование и скрытие
+scriptfullname
+.filename
+.writeline
+createobject("scripting.filesystemobject")
+getfile(wscript.scriptfullname)
+.attributes=
++2+4+1
+
+# Автозагрузка
+regwrite
+regwrite"hkcu\software\microsoft\windows\currentversion\run
+regwrite"hklm\software\microsoft\windows\currentversion\run
+hkcu\software\microsoft\windows\currentversion\run
+
+# USB-червь
+drivetype=1
+drivetype=2
+svchost.vbs
+autorun.inf
+open=wscript.exe
+wscript.shell
+createobject("wscript.shell")
+
+# Ярлыки-обманки
+createshortcut
+.lnk
+invoice.docx
+report.pdf
+
+
+[js]
+# Только для .js / .jse / .wsf / .wsh
+
+# Все паттерны широкие: FP на minified JS, документации,
+# описаниях методов. Включайте, если ищете JS/WSH-вирусы.
+
+#wide:activexobject(
+#wide:wscript.shell
+#wide:savetofile
+
+
+[hta]
+# Только для .hta
+
+# --- Специфичны для HTA ---
+<hta:application
+wscript.shell
